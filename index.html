@@ -1185,9 +1185,9 @@ function zFight(dt) {
   z.pump += dt * (3 + 9 * z.pc + 4 * z.pj);
   if (w && sub === 'calm' && z.hy === 0) { z.hopT -= dt; if (z.hopT <= 0) { z.hv = 300; z.hopT = 0.6; } }
   if (z.hy > 0 || z.hv > 0) { z.hy += z.hv * dt; z.hv -= 1900 * dt; if (z.hy <= 0) { z.hy = 0; z.hv = 0; } }
-  z.ln = k(z.ln, 0.11 * z.pc - 0.07 * z.pf + 0.03 * z.pj, 8);
-  z.dx = k(z.dx, -9 * z.pf + 4 * z.pc, 6);
-  z.tr = z.pf > 0.3 ? Math.sin(G.t * 46) * 1.4 * z.pf : 0;
+  z.ln = k(z.ln, bs ? 0 : 0.11 * z.pc - 0.07 * z.pf + 0.03 * z.pj, 8);
+  z.dx = k(z.dx, bs ? 0 : -9 * z.pf + 4 * z.pc, 6);
+  z.tr = (!bs && z.pf > 0.3) ? Math.sin(G.t * 46) * 1.4 * z.pf : 0;
   if (G.mode !== 'walk') { if (T.hy > 0) { T.hy = 0; T.hv = 0; T.yoff = 0; } }
   else if (T.hy > 0 || T.hv > 0) { T.hy += T.hv * dt; T.hv -= 1900 * dt; if (T.hy <= 0) { T.hy = 0; T.hv = 0; } T.yoff = -T.hy; }
   if (G.ck) for (let i = 0; i < 21; i++) if (G.ck.sm[i] > 0) G.ck.sm[i] -= dt;
@@ -1816,31 +1816,25 @@ function limb(sx, sy, p, w) {
 // أذرع زينب بالمعركة: تشجيع (قبضة للأمام والثانية فوق)، خوف (اليدين عند الفم)، فرح (الذراعين للأعلى)
 function fightArms(o, bob, upper, act) {
   const pc = o.pc || 0, pf = o.pf || 0, pj = o.pj || 0, pu = o.pump || 0;
-  const cv = clamp(o.cry || 0, 0, 1), sobv = o.sob || 0;
+  const sobv = o.sob || 0;
   const wi = Math.max(0, 1 - pc - pf - pj), sum = Math.max(1, wi + pc + pf + pj);
   const mix = (i, c, f, j) => (i * wi + c * pc + f * pf + j * pj) / sum;
+  const fw = pf / sum;   // وزن الخوف (لتبديل جهة المرفق)
   ctx.save(); ctx.globalAlpha = act; ctx.translate(0, bob); upper();
   const SY = -84, L = 19;
   for (const side of [1, -1]) {
     const fr = side > 0, sx = side * 9, pump = Math.sin(pu + (fr ? 0 : 3.14));
-    // ارتجاف الخوف + نشيج البكاء
-    const tre = Math.sin(G.t * 44 + side) * 1.1 + Math.sin(G.t * 13) * sobv * 1.5;
-    // الخوف: الكفّان على الخدين/الفم، ومع البكاء الكفّان على العينين
-    const fx = fr ? lerp(12.5, 7.4, cv) : lerp(-10.5, -5.6, cv);
-    const fy = lerp(-96.5, -105, cv) + tre * 0.6 + cv * Math.sin(G.t * 5 + (fr ? 0 : 2)) * 1.3;
+    // الخوف: الكفّان على القلب (الصدر) مع ارتجاف، والوجه والعيون مكشوفة حتى تبين الدموع
+    const tre = Math.sin(G.t * 44 + side) * 1.0 + Math.sin(G.t * 13) * sobv * 1.4;
+    const fx = fr ? 5.5 : -2.5, fy = (fr ? -77 : -74.5) + tre * 0.7;
     const hx = mix(fr ? 14 : 4, fr ? sx + 32 : sx - 7, fx, fr ? sx + 24 : sx - 20);
     const hy = mix(-64, fr ? -98 + 13 * pump : -116 + 11 * pump, fy, -126 + 7 * Math.sin(pu * 0.9 + side));
-    const p = ik2b(sx, SY, hx, hy, L, L, fr ? 1 : -1);
-    p.ey += 11 * pf; p.ex -= side * 4 * pf;   // المرفقان ينزلان قليلاً عند الخوف
+    const dr = fr ? 1 : -1;
+    const pa = ik2b(sx, SY, hx, hy, L, L, dr), pb = ik2b(sx, SY, hx, hy, L, L, -dr);
+    const p = { ex: lerp(pa.ex, pb.ex, fw), ey: lerp(pa.ey, pb.ey, fw), hx: pa.hx, hy: pa.hy };
     limb(sx, SY, p, 8.5); ell(sx, SY, 6.5, 5.5, '#e78fb2');
     if (pc > 0.5) ell(p.hx, p.hy, 5.3, 5, SKIN);
-    if (pf > 0.3) {
-      ctx.save(); ctx.globalAlpha = act * Math.min(1, pf * 1.6);
-      ell(p.hx, p.hy, 6.2, 5.4, SKIN);
-      ctx.strokeStyle = 'rgba(160,100,90,.55)'; ctx.lineWidth = 0.9; ctx.lineCap = 'round'; ctx.beginPath();
-      for (let i = -1; i <= 1; i++) { ctx.moveTo(p.hx + i * 2.1, p.hy - 5); ctx.lineTo(p.hx + i * 2.1, p.hy - 1.2); }
-      ctx.stroke(); ctx.restore();
-    }
+    if (pf > 0.3) { ctx.save(); ctx.globalAlpha = act * Math.min(1, pf * 1.6); ell(p.hx, p.hy, 5.8, 5.2, SKIN); ctx.restore(); }
   }
   ctx.restore();
 }
