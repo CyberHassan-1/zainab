@@ -869,7 +869,7 @@ const BEATS = [
       const q = ez(p, 0.34, 0.6); G.orb.r = lerp(0.8, 5.2, q) + 1.4 * ez(p, 0.78, 1); G.orb.x = z.x + 7 + 1.4 * q; G.orb.y = YC - 102 + 7 * q;
     }
     once(B, 'cry2', p >= 0.6, () => { z.sob = 1; sayZ(TEXT.bossCall2, 2.4); });
-    B.tearT += dt; if (B.tearT > 0.12) { B.tearT = 0; for (const ex of [6.5, -5]) G.particles.push({ x: z.x + ex, y: YC - 100, vx: (Math.random() - 0.5) * 8, vy: 10, life: 0.9, max: 0.9, kind: 'tear', size: 5, c: 'rgba(190,225,255,.95)', rot: 0 }); }
+    B.tearT += dt; if (B.tearT > 0.12) { B.tearT = 0; for (const ex of [6.5, -5]) { const ep = zEye(ex); G.particles.push({ x: ep.x, y: ep.y + 4.5, vx: (Math.random() - 0.5) * 8, vy: 10, life: 0.9, max: 0.9, kind: 'tear', size: 5, c: 'rgba(190,225,255,.95)', rot: 0 }); } }
   } },
   // 13: الدمعة تتحوّل إلى نور وتطير إلى قلب الدبدوب والكاميرا تتبعها
   { d: 3.2, run(B, p, dt, A, s) {
@@ -967,7 +967,7 @@ function bossHugPose(B, p, dt, rage) {
   T.face = -1; T.rage = rage; T.scale = 2.45; T.yoff = 0; T.rot = 0; T.glow = 0; T.sq = 0.03 * Math.sin(B.bt * 6); T.armHug = 0.55 * wrap;
   z.x = T.x - 72; z.hug = 1; z.cry = 1; z.face = 1;
   z.pose = { open: ez(p, 0, 0.3), wrap, crouch: 0, lean: 0.2 * wrap, tilt: 0.28 * wrap, happy: 0, shut: wrap > 0.6 ? 1 : 0 };
-  B.tearT += dt; if (B.tearT > 0.3) { B.tearT = 0; G.particles.push({ x: z.x + 6.5, y: YC - 100, vx: 0, vy: 10, life: 0.9, max: 0.9, kind: 'tear', size: 5, c: 'rgba(190,225,255,.95)', rot: 0 }); }
+  B.tearT += dt; if (B.tearT > 0.3) { B.tearT = 0; { const ep = zEye(6.5); G.particles.push({ x: ep.x, y: ep.y + 4.5, vx: 0, vy: 10, life: 0.9, max: 0.9, kind: 'tear', size: 5, c: 'rgba(190,225,255,.95)', rot: 0 }); } }
 }
 
 function updateBoss(dt) {
@@ -1163,6 +1163,19 @@ function zCheer(big) {
 function monFly(m) {   // الوحش يتحول لفراشات مضيئة
   const n = lowEnd ? 5 : 9;
   for (let i = 0; i < n && G.particles.length < 165; i++) G.particles.push({ x: m.x + (Math.random() - 0.5) * 50, y: YC - 30 - Math.random() * 50, vx: (Math.random() - 0.5) * 50, vy: -35 - Math.random() * 40, life: 2.4, max: 2.4, kind: 'bfly', size: 5 + Math.random() * 3, c: ['#f7c7db', '#b49be7', '#f4d49b', '#ff9ec8'][i % 4], rot: Math.random() * 6 });
+}
+// مكان العين الحقيقي لزينب (يتبع الانحناء والميلان والارتجاف) حتى تنزل الدموع منها بالضبط
+function zEye(ex) {
+  const z = G.z, hug = z.hug > 0.5 && z.pose, P = hug ? z.pose : null, mv = z.moving ? 1 : 0;
+  const cl = hug ? 0 : (z.cling || 0), pf = hug ? 0 : (z.pf || 0), pc = hug ? 0 : (z.pc || 0);
+  const bob = Math.sin(z.ph * 2) * 1.6 * mv + Math.sin(G.t * 2) * 0.6 - (hug ? 0 : (z.hy || 0));
+  const crouch = (P ? P.crouch : 0) + 2.5 * cl + 3.5 * pf, lean = (P ? P.lean : 0) + 0.17 * cl + (hug ? 0 : (z.ln || 0)), tilt = (P ? P.tilt : 0) + 0.12 * cl - 0.05 * pc;
+  let x = ex, y = -11, c = Math.cos(tilt), s = Math.sin(tilt);
+  [x, y] = [x * c - y * s, x * s + y * c]; y -= 94;
+  y += 64; c = Math.cos(lean); s = Math.sin(lean); [x, y] = [x * c - y * s, x * s + y * c]; y -= 64;
+  y += crouch + bob;
+  const off = hug ? 0 : (z.dx || 0) + (z.tr || 0);
+  return { x: z.x + z.face * (x + off), y: YC + y };
 }
 function zFight(dt) {
   const z = G.z, T = G.ted, w = G.mode === 'wave', sub = G.sub;
